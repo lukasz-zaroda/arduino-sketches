@@ -10,7 +10,16 @@ char min_brightness = 0;
 int memory_addr = 0;
 
 // An hour in miliseconds.
-unsigned long interval = 60*60*1000;
+unsigned long interval = 60UL*60UL*1000UL;
+
+Timer<>::Task startHoursCounter() {
+  return timer.every(interval, incrementHours);
+}
+
+Timer<>::Task resetHoursCounter() {
+  timer.cancel();
+  return startHoursCounter();
+}
 
 int hoursToDays(int hours) {
   return (int) floor(hours/24);
@@ -36,19 +45,15 @@ int readHoursFromMemory() {
   return readIntFromEEPROM(memory_addr);  
 }
 
-void writeDaysToMemory(int day) {
-  writeIntIntoEEPROM(memory_addr, day*24);
-}
-
 void writeHoursToMemory(int hours) {
   writeIntIntoEEPROM(memory_addr, hours);
 }
 
 void resetDaysInMemory() {
-  writeDaysToMemory(0);
+  writeIntIntoEEPROM(memory_addr, 0);
 }
 
-void displayDays(int days) {
+void displayNumber(int days) {
   unsigned int maxDigitsNumber = 3;
   unsigned int counter = maxDigitsNumber + 1;
 
@@ -69,9 +74,10 @@ void displayDays(int days) {
   } while (days > 0 && counter > 0);
 }
 
-void resetDays() {
+void reset() {
+  resetHoursCounter();
   resetDaysInMemory();
-  displayDays(0);
+  displayNumber(0);
 }
 
 bool incrementHours(void *) {
@@ -80,7 +86,7 @@ bool incrementHours(void *) {
   writeHoursToMemory(hours);
 
   int days = hoursToDays(hours);
-  displayDays(days);
+  displayNumber(days);
   
   return true;
 }
@@ -92,7 +98,7 @@ void setup() {
 
   pinMode(LED_BUILTIN, OUTPUT);
 
-  timer.every(interval, incrementHours);
+  startHoursCounter();
 }
 
 void loop() {
@@ -113,8 +119,26 @@ void loop() {
       }
       break;  
 
+    case KEY_LEFT:
+      {
+        int hours = readHoursFromMemory();
+        hours = hours > 24 ? hours-24 : 0;
+        writeHoursToMemory(hours);
+        displayNumber(hoursToDays(hours));
+      }
+      break;
+
+    case KEY_RIGHT:
+      {
+        int hours = readHoursFromMemory();
+        hours += 24;
+        writeHoursToMemory(hours);
+        displayNumber(hoursToDays(hours));
+      }
+      break;
+
     case KEY_SELECT:
-      resetDays();
+      reset();
       break;
 
     default:
